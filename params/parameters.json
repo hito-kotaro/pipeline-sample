@@ -1,0 +1,10 @@
+[
+  {
+    "ParameterKey": "RepoConnection",
+    "ParameterValue": "arn:aws:codestar-connections:ap-northeast-1:665378081513:connection/04bfd37e-1934-49ac-996b-2512b56a7c02"
+  },
+  {
+    "ParameterKey": "RepositoryId", 
+    "ParameterValue": "hito-kotaro/pipeline-sample-target"
+  }
+]

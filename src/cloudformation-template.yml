@@ -1,0 +1,79 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Parameters:
+  RepoConnection:
+    Type: String
+  RepositoryId:
+    Type: String
+      
+Resources: 
+  # CodeBuildプロジェクトを作成する
+  ArtifactBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${AWS::StackName}-artifacts'
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: True
+        BlockPublicPolicy: True
+        IgnorePublicAcls: True
+        RestrictPublicBuckets: True
+
+  BuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties: 
+      Name: !Sub '${AWS::StackName}-build-project'
+      ServiceRole: !ImportValue account-commons-BuildForCloudformationRole
+      Source:
+        Type: CODEPIPELINE
+      Artifacts: 
+        Type: CODEPIPELINE
+      Environment: 
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/amazonlinux2-x86_64-standard:3.0
+        EnvironmentVariables:
+          - Name: AWS_DEFAULT_REGION
+            Value: !Ref AWS::Region
+          - Name: S3_BUCKET
+            Value: !Ref ArtifactBucket
+  Pipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties: 
+      Name: !Sub '${AWS::StackName}'
+      RoleArn: !ImportValue account-commons-CodepipelineRole
+      ArtifactStore: 
+        Type: S3
+        Location: !Ref ArtifactBucket
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: download-source
+              ActionTypeId:
+                Version: '1'
+                Owner: AWS
+                Category: Source
+                Provider: CodeStarSourceConnection
+              RunOrder: 1
+              Configuration:
+                ConnectionArn: !Ref RepoConnection
+                FullRepositoryId: !Ref RepositoryId
+                BranchName: main
+                OutputArtifactFormat: "CODE_ZIP"
+              OutputArtifacts:
+                - Name: SourceOutput
+        - Name: Test
+          Actions:
+            - InputArtifacts:
+              - Name: SourceOutput
+              Name: testing
+              ActionTypeId:
+                Category: Test
+                Owner: AWS
+                Version: '1'
+                Provider: CodeBuild
+              OutputArtifacts:
+                - Name: artifact1
+                - Name: artifact2
+              Configuration:
+                ProjectName: !Ref BuildProject
